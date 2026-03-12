@@ -1,4 +1,5 @@
 import chatbotService from "../services/chatbotService.js";
+import csvService from "../services/csvService.js";
 
 let test = (req, res) => {
     return res.send("Messenger Webhook Server is running!");
@@ -6,20 +7,15 @@ let test = (req, res) => {
 
 let getWebhook = (req, res) => {
     let VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-    // Parse the query params
     let mode = req.query["hub.mode"];
     let token = req.query["hub.verify_token"];
     let challenge = req.query["hub.challenge"];
 
-    // Check if a token and mode is in the query string of the request
     if (mode && token) {
-        // Check the mode and token sent are correct
         if (mode === "subscribe" && token === VERIFY_TOKEN) {
-            // Respond with the challenge token from the request
             console.log("WEBHOOK_VERIFIED");
             return res.status(200).send(challenge);
         } else {
-            // Responds with '403 Forbidden' if verify tokens do not match
             return res.sendStatus(403);
         }
     }
@@ -29,39 +25,51 @@ let getWebhook = (req, res) => {
 let postWebhook = async (req, res) => {
     let body = req.body;
 
-    // Checks this is an event from a page subscription
     if (body.object === "page") {
-
-        // Iterates over each entry - there may be multiple if batched
         for (const entry of body.entry) {
-            // Gets the message. entry.messaging is an array, but 
-            // will only ever contain one message, so we get index 0
             if (entry.messaging && entry.messaging[0]) {
                 let webhook_event = entry.messaging[0];
-
-                // Extract PSID and message text
                 let sender_psid = webhook_event.sender.id;
-                console.log('Sender PSID: ' + sender_psid);
 
                 if (webhook_event.message && webhook_event.message.text) {
                     let message_text = webhook_event.message.text;
-                    console.log('Message received: ' + message_text);
+                    console.log(`[${sender_psid}] Message: ${message_text}`);
 
-                    // Create the response object
-                    let response = {
-                        "text": `You sent the message: "${message_text}". This is an automated reply from Vercel!`
-                    };
+                    // 1. Check if user exists in our CSV "database"
+                    let lead = csvService.getLead(sender_psid);
+                    let response_text = "";
 
-                    // Send the response
-                    await chatbotService.callSendAPI(sender_psid, response);
+                    if (!lead) {
+                        // User is new -> Ask for Name
+                        csvService.saveLead({
+                            psid: sender_psid,
+                            lastMessage: message_text
+                        });
+                        response_text = "Hello! I'm your assistant. Can you please tell me your name?";
+                    } else if (!lead.name) {
+                        // User exists but no Name -> Save message as Name, then ask for Phone
+                        lead.name = message_text;
+                        lead.lastMessage = message_text;
+                        csvService.saveLead(lead);
+                        response_text = `Nice to meet you, ${message_text}! Now, please tell me your phone number so we can reach out.`;
+                    } else if (!lead.phone) {
+                        // User has Name but no Phone -> Save message as Phone
+                        lead.phone = message_text;
+                        lead.lastMessage = message_text;
+                        csvService.saveLead(lead);
+                        response_text = "Thank you! We've received your information and our team will contact you soon.";
+                    } else {
+                        // Lead is complete
+                        response_text = "Thanks again for your interest! We already have your details. Is there anything else you'd like to know?";
+                    }
+
+                    // Send the reply
+                    await chatbotService.callSendAPI(sender_psid, { "text": response_text });
                 }
             }
         }
-
-        // Returns a '200 OK' response to all requests
         return res.status(200).send("EVENT_RECEIVED");
     } else {
-        // Returns a '404 Not Found' if event is not from a page subscription
         return res.sendStatus(404);
     }
 };
