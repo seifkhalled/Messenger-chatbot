@@ -21,6 +21,10 @@ initWebRoutes(app);
 
 let port = process.env.PORT || 3000;
 
-app.listen(port , () => {
-    console.log("App is running at the port:" + port);
-})
+if (process.env.NODE_ENV !== 'vercel') {
+    app.listen(port , () => {
+        console.log("App is running at the port:" + port);
+    })
+}
+
+export default app;
