@@ -1,5 +1,5 @@
 import express from "express";
-import chatbotController from "../controllers/chatbotController";
+import chatbotController from "../controllers/chatbotController.js";
 
 let router = express.Router();
 
@@ -12,4 +12,4 @@ let initWebRoutes = (app) => {
     return app.use("/" , router);
 };
 
-module.exports = initWebRoutes;
+export default initWebRoutes;

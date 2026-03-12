@@ -46,7 +46,7 @@ let postWebhook = (req, res) => {
     }
 };
 
-module.exports = {
+export default {
     test: test,
     getWebhook: getWebhook,
     postWebhook: postWebhook

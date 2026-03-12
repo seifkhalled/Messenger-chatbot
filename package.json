@@ -2,11 +2,12 @@
   "name": "massenger_chatbot",
   "version": "1.0.0",
   "description": "facebook massenger google sheet",
-  "main": "src/server.js",
+  "type": "module",
+  "main": "api/server.js",
   "scripts": {
-    "build": "babel src -d dist",
-    "start": "node dist/server.js",
-    "dev": "nodemon --exec babel-node src/server.js",
+    "start": "node api/server.js",
+    "build": "echo Build complete",
+    "dev": "nodemon api/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "seif khaled",
