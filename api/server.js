@@ -15,25 +15,6 @@ viewEngine(app);
 // Init web routes
 initWebRoutes(app);
 
-// Explicit webhook verification for Vercel compatibility
-app.get("/webhook", (req, res) => {
-    let VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-    let mode = req.query["hub.mode"];
-    let token = req.query["hub.verify_token"];
-    let challenge = req.query["hub.challenge"];
-
-    if (mode && token) {
-        if (mode === "subscribe" && token === VERIFY_TOKEN) {
-            console.log("WEBHOOK_VERIFIED");
-            return res.status(200).send(challenge);
-        } else {
-            console.error("Webhook verification failed. Token mismatch.");
-            return res.sendStatus(403);
-        }
-    }
-    return res.status(404).send("Invalid request");
-});
-
 // For local development
 let port = process.env.PORT || 3000;
 if (process.env.NODE_ENV !== 'vercel') {
