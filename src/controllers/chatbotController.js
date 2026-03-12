@@ -1,8 +1,8 @@
 import chatbotService from "../services/chatbotService.js";
-import csvService from "../services/csvService.js";
+import dbService from "../services/dbService.js";
 
 let test = (req, res) => {
-    return res.send("Messenger Webhook Server is running!");
+    return res.send("Messenger Webhook Server is running with Vercel Postgres!");
 }
 
 let getWebhook = (req, res) => {
@@ -32,39 +32,43 @@ let postWebhook = async (req, res) => {
                 let sender_psid = webhook_event.sender.id;
 
                 if (webhook_event.message && webhook_event.message.text) {
-                    let message_text = webhook_event.message.text;
-                    console.log(`[${sender_psid}] Message: ${message_text}`);
+                    let text = webhook_event.message.text;
+                    console.log(`[${sender_psid}] Message: ${text}`);
 
-                    // 1. Check if user exists in our CSV "database"
-                    let lead = csvService.getLead(sender_psid);
-                    let response_text = "";
+                    // Check user state in the database
+                    const lead = await dbService.getLead(sender_psid);
 
                     if (!lead) {
-                        // User is new -> Ask for Name
-                        csvService.saveLead({
-                            psid: sender_psid,
-                            lastMessage: message_text
+                        // New user -> Start flow
+                        await dbService.saveLead({ psid: sender_psid, state: 'ASKED_NAME' });
+                        await chatbotService.callSendAPI(sender_psid, { "text": "Hello! I'm your assistant. What's your name?" });
+                    } else if (lead.state === 'ASKED_NAME') {
+                        // Name received -> Ask for Phone
+                        await dbService.saveLead({ 
+                            psid: sender_psid, 
+                            name: text, 
+                            state: 'ASKED_PHONE' 
                         });
-                        response_text = "Hello! I'm your assistant. Can you please tell me your name?";
-                    } else if (!lead.name) {
-                        // User exists but no Name -> Save message as Name, then ask for Phone
-                        lead.name = message_text;
-                        lead.lastMessage = message_text;
-                        csvService.saveLead(lead);
-                        response_text = `Nice to meet you, ${message_text}! Now, please tell me your phone number so we can reach out.`;
-                    } else if (!lead.phone) {
-                        // User has Name but no Phone -> Save message as Phone
-                        lead.phone = message_text;
-                        lead.lastMessage = message_text;
-                        csvService.saveLead(lead);
-                        response_text = "Thank you! We've received your information and our team will contact you soon.";
+                        await chatbotService.callSendAPI(sender_psid, { 
+                            "text": `Nice to meet you, ${text}! Please tell me your phone number so we can reach out.` 
+                        });
+                    } else if (lead.state === 'ASKED_PHONE') {
+                        // Phone received -> Complete
+                        await dbService.saveLead({ 
+                            psid: sender_psid, 
+                            name: lead.name,
+                            phone: text, 
+                            state: 'COMPLETED' 
+                        });
+                        await chatbotService.callSendAPI(sender_psid, { 
+                            "text": "Thank you! We've received your information and our team will contact you soon." 
+                        });
                     } else {
-                        // Lead is complete
-                        response_text = "Thanks again for your interest! We already have your details. Is there anything else you'd like to know?";
+                        // Flow already completed
+                        await chatbotService.callSendAPI(sender_psid, { 
+                            "text": "Thanks again! We have your details. How else can I help you today?" 
+                        });
                     }
-
-                    // Send the reply
-                    await chatbotService.callSendAPI(sender_psid, { "text": response_text });
                 }
             }
         }
