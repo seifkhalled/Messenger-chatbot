@@ -2,7 +2,7 @@ import chatbotService from "../services/chatbotService.js";
 import dbService from "../services/dbService.js";
 
 let test = (req, res) => {
-    return res.send("Messenger Webhook Server is running with Vercel Postgres!");
+    return res.send("Messenger Webhook Server is running with Supabase!");
 }
 
 let getWebhook = (req, res) => {
@@ -35,15 +35,15 @@ let postWebhook = async (req, res) => {
                     let text = webhook_event.message.text;
                     console.log(`[${sender_psid}] Message: ${text}`);
 
-                    // Check user state in the database
+                    // Fetch user from Supabase
                     const lead = await dbService.getLead(sender_psid);
 
                     if (!lead) {
-                        // New user -> Start flow
+                        // 1. New user -> Ask for Name
                         await dbService.saveLead({ psid: sender_psid, state: 'ASKED_NAME' });
                         await chatbotService.callSendAPI(sender_psid, { "text": "Hello! I'm your assistant. What's your name?" });
                     } else if (lead.state === 'ASKED_NAME') {
-                        // Name received -> Ask for Phone
+                        // 2. Name received -> Store name and ask for Phone
                         await dbService.saveLead({ 
                             psid: sender_psid, 
                             name: text, 
@@ -53,7 +53,7 @@ let postWebhook = async (req, res) => {
                             "text": `Nice to meet you, ${text}! Please tell me your phone number so we can reach out.` 
                         });
                     } else if (lead.state === 'ASKED_PHONE') {
-                        // Phone received -> Complete
+                        // 3. Phone received -> Store phone and mark as Completed
                         await dbService.saveLead({ 
                             psid: sender_psid, 
                             name: lead.name,
@@ -64,7 +64,7 @@ let postWebhook = async (req, res) => {
                             "text": "Thank you! We've received your information and our team will contact you soon." 
                         });
                     } else {
-                        // Flow already completed
+                        // 4. Flow already completed -> Handle follow-up or general info
                         await chatbotService.callSendAPI(sender_psid, { 
                             "text": "Thanks again! We have your details. How else can I help you today?" 
                         });

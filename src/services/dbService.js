@@ -1,4 +1,11 @@
-import { sql } from '@vercel/postgres';
+import { createClient } from '@supabase/supabase-js';
+
+// Note: These will be provided by Vercel environment variables in production
+// For local testing, ensure they are in your .env
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Gets a lead by PSID.
@@ -6,54 +13,54 @@ import { sql } from '@vercel/postgres';
  */
 export async function getLead(psid) {
     try {
-        const { rows } = await sql`SELECT * FROM leads WHERE psid = ${psid}`;
-        return rows[0] || null;
+        const { data, error } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('psid', psid)
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found"
+            console.error('Supabase Error (getLead):', error);
+            return null;
+        }
+
+        return data || null;
     } catch (error) {
-        console.error('Database Error (getLead):', error);
+        console.error('Service Error (getLead):', error);
         return null;
     }
 }
 
 /**
- * Saves or updates a lead with state management.
+ * Saves or updates a lead with state management using upsert.
  * @param {object} lead 
  */
 export async function saveLead({ psid, name = null, phone = null, state }) {
     try {
-        await sql`
-            INSERT INTO leads (psid, name, phone, state)
-            VALUES (${psid}, ${name}, ${phone}, ${state})
-            ON CONFLICT (psid) 
-            DO UPDATE SET 
-                name = EXCLUDED.name, 
-                phone = EXCLUDED.phone, 
-                state = EXCLUDED.state,
-                updated_at = CURRENT_TIMESTAMP
-        `;
+        const { error } = await supabase
+            .from('leads')
+            .upsert({ 
+                psid, 
+                name, 
+                phone, 
+                state,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'psid' });
+
+        if (error) {
+            console.error('Supabase Error (saveLead):', error);
+        }
     } catch (error) {
-        console.error('Database Error (saveLead):', error);
+        console.error('Service Error (saveLead):', error);
     }
 }
 
 /**
- * Initializes the database table if it doesn't exist.
+ * Optional: Helper specifically for initializing DB via route if needed.
+ * Note: Table creation is usually done via Supabase SQL Editor.
  */
 export async function initDB() {
-    try {
-        await sql`
-            CREATE TABLE IF NOT EXISTS leads (
-                psid TEXT PRIMARY KEY,
-                name TEXT,
-                phone TEXT,
-                state TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `;
-        console.log('Database initialized successfully');
-    } catch (error) {
-        console.error('Database Initialization Error:', error);
-    }
+    console.log('Please initialize your table via the Supabase SQL Editor using the provided schema.');
 }
 
 export default {
