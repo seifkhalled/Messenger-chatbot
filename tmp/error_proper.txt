@@ -1,0 +1,11 @@
+Error: supabaseUrl is required.
+    at validateSupabaseUrl (file:///E:/PropaiCRM/node_modules/@supabase/supabase-js/dist/index.mjs:150:25)
+    at new SupabaseClient (file:///E:/PropaiCRM/node_modules/@supabase/supabase-js/dist/index.mjs:366:19)
+    at createClient (file:///E:/PropaiCRM/node_modules/@supabase/supabase-js/dist/index.mjs:559:9)
+    at file:///E:/PropaiCRM/src/services/dbService.js:8:18
+    at ModuleJobSync.runSync (node:internal/modules/esm/module_job:458:37)
+    at ModuleLoader.importSyncForRequire (node:internal/modules/esm/loader:433:47)
+    at loadESMFromCJS (node:internal/modules/cjs/loader:1537:24)
+    at Module._compile (node:internal/modules/cjs/loader:1688:5)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)

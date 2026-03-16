@@ -31,7 +31,9 @@ let postWebhook = async (req, res) => {
                 let webhook_event = entry.messaging[0];
                 let sender_psid = webhook_event.sender.id;
 
-                if (webhook_event.message && webhook_event.message.text) {
+                if (webhook_event.message) {
+                    if (!webhook_event.message.text) return res.status(200).send("EVENT_RECEIVED");
+                    
                     let text = webhook_event.message.text;
                     console.log(`[${sender_psid}] Message: ${text}`);
 
@@ -39,21 +41,21 @@ let postWebhook = async (req, res) => {
                     const lead = await dbService.getLead(sender_psid);
 
                     if (!lead) {
-                        // 1. New user -> Ask for Name
+                        // STATE 1 — No record in DB (new user)
                         await dbService.saveLead({ psid: sender_psid, state: 'ASKED_NAME' });
-                        await chatbotService.callSendAPI(sender_psid, { "text": "Hello! I'm your assistant. What's your name?" });
+                        await chatbotService.callSendAPI(sender_psid, { "text": "Hello! 👋 What's your name?" });
                     } else if (lead.state === 'ASKED_NAME') {
-                        // 2. Name received -> Store name and ask for Phone
+                        // STATE 2 — state === 'ASKED_NAME'
                         await dbService.saveLead({ 
                             psid: sender_psid, 
                             name: text, 
                             state: 'ASKED_PHONE' 
                         });
                         await chatbotService.callSendAPI(sender_psid, { 
-                            "text": `Nice to meet you, ${text}! Please tell me your phone number so we can reach out.` 
+                            "text": `Nice to meet you, ${text}! What's your phone number?` 
                         });
                     } else if (lead.state === 'ASKED_PHONE') {
-                        // 3. Phone received -> Store phone and mark as Completed
+                        // STATE 3 — state === 'ASKED_PHONE'
                         await dbService.saveLead({ 
                             psid: sender_psid, 
                             name: lead.name,
@@ -61,12 +63,12 @@ let postWebhook = async (req, res) => {
                             state: 'COMPLETED' 
                         });
                         await chatbotService.callSendAPI(sender_psid, { 
-                            "text": "Thank you! We've received your information and our team will contact you soon." 
+                            "text": "Thank you! ✅ Our team will contact you soon." 
                         });
-                    } else {
-                        // 4. Flow already completed -> Handle follow-up or general info
+                    } else if (lead.state === 'COMPLETED') {
+                        // STATE 4 — state === 'COMPLETED'
                         await chatbotService.callSendAPI(sender_psid, { 
-                            "text": "Thanks again! We have your details. How else can I help you today?" 
+                            "text": "We already have your details. Our team will reach out shortly!" 
                         });
                     }
                 }

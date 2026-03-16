@@ -1,0 +1,10 @@
+import '../src/services/dbService.js';
+console.log('dbService imported');
+import '../src/services/chatbotService.js';
+console.log('chatbotService imported');
+import '../src/controllers/chatbotController.js';
+console.log('chatbotController imported');
+import '../src/routes/web.js';
+console.log('web route imported');
+import '../api/server.js';
+console.log('server imported');

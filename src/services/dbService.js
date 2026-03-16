@@ -3,9 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 // Note: These will be provided by Vercel environment variables in production
 // For local testing, ensure they are in your .env
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * Gets a lead by PSID.
@@ -19,7 +19,7 @@ export async function getLead(psid) {
             .eq('psid', psid)
             .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found"
+        if (error && error.code !== 'PGRST116') {
             console.error('Supabase Error (getLead):', error);
             return null;
         }
@@ -32,26 +32,19 @@ export async function getLead(psid) {
 }
 
 /**
- * Saves or updates a lead with state management using upsert.
- * @param {object} lead 
+ * Saves or updates a lead using upsert.
  */
-export async function saveLead({ psid, name = null, phone = null, state }) {
+export async function saveLead({ psid, name, phone, state }) {
     try {
         const { error } = await supabase
             .from('leads')
-            .upsert({ 
-                psid, 
-                name, 
-                phone, 
-                state,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'psid' });
+            .upsert({ psid, name, phone, state }, { onConflict: 'psid' });
 
         if (error) {
-            console.error('Supabase Error (saveLead):', error);
+            console.error('❌ Supabase Error (saveLead):', error);
         }
     } catch (error) {
-        console.error('Service Error (saveLead):', error);
+        console.error('❌ Service Error (saveLead):', error);
     }
 }
 
